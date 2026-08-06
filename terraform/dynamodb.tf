@@ -12,7 +12,7 @@ resource "aws_dynamodb_table" "events_registrations" {
   name         = "${var.project_name}-${var.environment}"
   billing_mode = "PAY_PER_REQUEST" # no capacity planning needed, stays in free tier at low volume
 
-  hash_key = "PK"
+  hash_key  = "PK"
   range_key = "SK"
 
   attribute {

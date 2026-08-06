@@ -1,0 +1,11 @@
+{
+  "name": "event-ticketing-system",
+  "version": "1.0.0",
+  "description": "Serverless event registration and ticketing API — AWS Lambda, API Gateway, DynamoDB, Terraform",
+  "scripts": {
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0"
+  }
+}
