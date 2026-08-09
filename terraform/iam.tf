@@ -58,3 +58,19 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
     }]
   })
 }
+
+# Scoped to exactly one topic — the Lambda cannot publish to any other
+# SNS topic in the account, even one you create later by hand.
+resource "aws_iam_role_policy" "lambda_sns" {
+  name = "${var.project_name}-${var.environment}-lambda-sns"
+  role = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "sns:Publish"
+      Resource = aws_sns_topic.alerts.arn
+    }]
+  })
+}

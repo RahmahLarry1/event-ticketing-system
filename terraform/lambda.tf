@@ -16,7 +16,8 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      TABLE_NAME = aws_dynamodb_table.events_registrations.name
+      TABLE_NAME    = aws_dynamodb_table.events_registrations.name
+      SNS_TOPIC_ARN = aws_sns_topic.alerts.arn
     }
   }
 
