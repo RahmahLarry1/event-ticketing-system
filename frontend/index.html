@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Gatherly — Event Registration & Ticketing</title>
+<style>
+  :root {
+    --bg: #fafaf9;
+    --surface: #ffffff;
+    --surface-2: #f4f4f2;
+    --border: #e3e3e0;
+    --text: #1c1c1a;
+    --text-dim: #6f6f6b;
+    --amber: #d4a017;
+    --amber-dark: #b3860e;
+    --amber-light: #fbf1d9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    margin: 0;
+    padding: 48px 24px 80px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .brand-mark {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, #e6b52c, var(--amber-dark));
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    color: #1c1c1a;
+    font-weight: 900;
+    font-size: 18px;
+    box-shadow: 0 2px 8px rgba(212,160,23,0.35);
+  }
+  .brand-name {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #111;
+  }
+  h1 { font-size: 30px; margin: 0 0 10px; color: #111; }
+  .sub { color: var(--text-dim); font-size: 15px; max-width: 560px; line-height: 1.55; }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin: 32px 0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .panel h2 { font-size: 15px; margin: 0 0 4px; text-align: center; color: #111; }
+  .panel .desc { color: var(--text-dim); font-size: 13px; text-align: center; margin-bottom: 16px; }
+  .lookup-row { display: flex; gap: 8px; max-width: 460px; margin: 0 auto; }
+  input, select {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    width: 100%;
+    transition: border-color 0.15s ease;
+  }
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--amber);
+    background: #fff;
+  }
+  input::placeholder { color: #a3a39d; }
+
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 40px 0 16px;
+  }
+  .section-head h2 { font-size: 18px; margin: 0; color: #111; }
+  .count-badge {
+    background: var(--amber-light);
+    border: 1px solid #f0dca3;
+    color: var(--amber-dark);
+    border-radius: 50%;
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+  }
+  .card:hover {
+    box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+    transform: translateY(-1px);
+  }
+  .tag {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--amber-dark);
+    margin-bottom: 6px;
+  }
+  .card h3 { font-size: 16px; margin: 0 0 10px; color: #111; }
+  .meta { font-size: 13px; color: var(--text-dim); margin-bottom: 4px; }
+
+  /* --- Buttons: primary (amber) --- */
+  .btn-primary {
+    width: 100%;
+    margin-top: 12px;
+    padding: 11px;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #dfae23, var(--amber));
+    color: #1c1c1a;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.08), 0 2px 6px rgba(212,160,23,0.25);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  }
+  .btn-primary:hover {
+    background: linear-gradient(180deg, var(--amber), var(--amber-dark));
+    box-shadow: 0 2px 10px rgba(212,160,23,0.35);
+    transform: translateY(-1px);
+  }
+  .btn-primary:active { transform: translateY(0); box-shadow: 0 1px 4px rgba(212,160,23,0.3); }
+
+  /* --- Buttons: secondary (grey outline) --- */
+  .btn-secondary {
+    padding: 10px 18px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+    white-space: nowrap;
+  }
+  .btn-secondary:hover { background: var(--surface-2); border-color: #ccc; }
+
+  form.register-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 420px;
+    margin: 16px auto 0;
+  }
+
+  #registerMsg, #lookupResults { margin-top: 14px; font-size: 14px; text-align: center; }
+  .error { color: #c0392b; }
+  .success { color: #1e8e5a; font-weight: 600; }
+  .badge { padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; color: white; }
+  .badge.confirmed { background: #1e8e5a; }
+  .badge.waitlisted { background: var(--amber-dark); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brand">
+    <div class="brand-mark">G</div>
+    <div class="brand-name">Gatherly</div>
+  </div>
+  <h1>Discover &amp; Register for Events</h1>
+  <p class="sub">Browse upcoming events and reserve your spot in a click. Look up your existing tickets by email any time.</p>
+
+  <div class="panel">
+    <h2>My Tickets</h2>
+    <div class="desc">Enter your email to see your registrations</div>
+    <form id="lookupForm" class="lookup-row">
+      <input type="email" id="lookupEmail" placeholder="e.g. you@example.com" required />
+      <button type="submit" class="btn-secondary">Retrieve</button>
+    </form>
+    <div id="lookupResults"></div>
+  </div>
+
+  <div class="section-head">
+    <h2>Upcoming Events</h2>
+    <div class="count-badge" id="eventCount">–</div>
+  </div>
+  <div class="grid" id="eventsList">Loading events…</div>
+
+  <div class="panel" id="registerPanel" style="display:none;">
+    <h2 id="registerHeading">Register</h2>
+    <form id="registerForm" class="register-form">
+      <input type="hidden" id="regEventId" />
+      <input type="text" id="regName" placeholder="Your name" required />
+      <input type="email" id="regEmail" placeholder="Your email" required />
+      <input type="text" id="regSource" placeholder="How did you hear about this? (optional)" />
+      <button type="submit" class="btn-primary">Confirm Registration →</button>
+    </form>
+    <div id="registerMsg"></div>
+  </div>
+
+</div>
+
+<script>
+  const API_BASE = "https://04wi1yylgd.execute-api.us-east-1.amazonaws.com";
+  let eventsCache = [];
+
+  async function loadEvents() {
+    const listEl = document.getElementById("eventsList");
+    const countEl = document.getElementById("eventCount");
+    try {
+      const res = await fetch(`${API_BASE}/events`);
+      const data = await res.json();
+      eventsCache = data.events || [];
+      countEl.textContent = eventsCache.length;
+
+      if (eventsCache.length === 0) {
+        listEl.innerHTML = "<p>No events available right now.</p>";
+        return;
+      }
+
+      listEl.innerHTML = eventsCache.map(ev => `
+        <div class="card">
+          <div class="tag">Upcoming</div>
+          <h3>${ev.eventName}</h3>
+          <div class="meta">Date: ${ev.eventDate || "TBA"}</div>
+          <div class="meta">Seats: ${ev.capacity ?? "—"}</div>
+          <button class="btn-primary" onclick="openRegister('${ev.eventId}', '${(ev.eventName || "").replace(/'/g, "\\'")}')">Get Ticket</button>
+        </div>
+      `).join("");
+    } catch (err) {
+      listEl.innerHTML = `<p class="error">Could not load events: ${err.message}</p>`;
+      countEl.textContent = "0";
+    }
+  }
+
+  function openRegister(eventId, eventName) {
+    document.getElementById("regEventId").value = eventId;
+    document.getElementById("registerHeading").textContent = `Register — ${eventName}`;
+    document.getElementById("registerPanel").style.display = "block";
+    document.getElementById("registerMsg").textContent = "";
+    document.getElementById("registerPanel").scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  document.getElementById("registerForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msgEl = document.getElementById("registerMsg");
+    msgEl.textContent = "Submitting…";
+    msgEl.className = "";
+
+    const payload = {
+      name: document.getElementById("regName").value,
+      email: document.getElementById("regEmail").value,
+      eventId: document.getElementById("regEventId").value,
+      source: document.getElementById("regSource").value || "website",
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        msgEl.textContent = data.error || "Something went wrong.";
+        msgEl.className = "error";
+        return;
+      }
+
+      msgEl.textContent = data.message;
+      msgEl.className = "success";
+      e.target.reset();
+    } catch (err) {
+      msgEl.textContent = `Network error: ${err.message}`;
+      msgEl.className = "error";
+    }
+  });
+
+  document.getElementById("lookupForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const resultsEl = document.getElementById("lookupResults");
+    const email = document.getElementById("lookupEmail").value;
+    resultsEl.textContent = "Looking up…";
+
+    try {
+      const res = await fetch(`${API_BASE}/registrations/${encodeURIComponent(email)}`);
+      const data = await res.json();
+
+      if (!data.registrations || data.registrations.length === 0) {
+        resultsEl.innerHTML = "<p style='color:#6f6f6b'>No registrations found for this email.</p>";
+        return;
+      }
+
+      resultsEl.innerHTML = data.registrations.map(r => `
+        <div style="text-align:left;background:#f4f4f2;border:1px solid #e3e3e0;border-radius:8px;padding:10px 14px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;">
+          <span>${r.eventId}</span>
+          <span class="badge ${r.status}">${r.status}</span>
+        </div>
+      `).join("");
+    } catch (err) {
+      resultsEl.innerHTML = `<p class="error">Error: ${err.message}</p>`;
+    }
+  });
+
+  loadEvents();
+</script>
+</body>
+</html>

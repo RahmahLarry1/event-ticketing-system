@@ -10,6 +10,10 @@ const {
   QueryCommand,
   DeleteCommand,
 } = require("@aws-sdk/lib-dynamodb");
+const { SNSClient, PublishCommand } = require("@aws-sdk/client-sns");
+
+const snsClient = new SNSClient({});
+const TOPIC_ARN = process.env.SNS_TOPIC_ARN;
 
 // The "client" is our open phone line to DynamoDB. We create it once,
 // outside the handler, so Lambda can reuse it across warm invocations
@@ -24,8 +28,6 @@ const TABLE_NAME = process.env.TABLE_NAME;
 exports.handler = async (event) => {
   console.log("Received event:", JSON.stringify(event));
 
-  // routeKey looks like "GET /events" or "POST /register" — API Gateway
-  // sets this for us based on which route matched the request.
   const routeKey = event.routeKey;
 
   try {
@@ -45,7 +47,6 @@ exports.handler = async (event) => {
       return await cancelRegistration(event);
     }
 
-    // No matching route yet — Phase 2 will add more branches here.
     return respond(404, { error: `No handler for route: ${routeKey}` });
   } catch (err) {
     console.error("Error handling request:", err);
@@ -54,9 +55,6 @@ exports.handler = async (event) => {
 };
 
 async function listEvents() {
-  // Scan reads every item in the table, then we filter to only the ones
-  // whose PK starts with "EVENT#" — that's how we separate events from
-  // registrations, since they live in the same table.
   const result = await docClient.send(
     new ScanCommand({
       TableName: TABLE_NAME,
@@ -65,8 +63,6 @@ async function listEvents() {
     })
   );
 
-  // Reshape each DynamoDB item into cleaner JSON for the API response —
-  // callers of this API shouldn't need to know about PK/SK internals.
   const events = (result.Items || []).map((item) => ({
     eventId: item.PK.replace("EVENT#", ""),
     eventName: item.eventName,
@@ -79,9 +75,6 @@ async function listEvents() {
 }
 
 async function registerForEvent(event) {
-  // event.body arrives as a JSON string — parse it into a real object.
-  // Wrapped in try/catch because if the caller sends broken JSON,
-  // JSON.parse throws, and we want a clean 400 error, not a crash.
   let data;
   try {
     data = JSON.parse(event.body || "{}");
@@ -91,7 +84,6 @@ async function registerForEvent(event) {
 
   const { name, email, eventId, source } = data;
 
-  // --- Validation: reject bad input before it ever touches DynamoDB ---
   if (!name || typeof name !== "string" || !name.trim()) {
     return respond(400, { error: "Name is required" });
   }
@@ -102,7 +94,6 @@ async function registerForEvent(event) {
     return respond(400, { error: "eventId is required" });
   }
 
-  // --- Confirm the event actually exists, and isn't full ---
   const eventResult = await docClient.send(
     new GetCommand({
       TableName: TABLE_NAME,
@@ -127,12 +118,10 @@ async function registerForEvent(event) {
     })
   );
   const currentCount = (existingRegs.Items || []).length;
+  // Instead of rejecting outright when full, we mark the registration as
+  // waitlisted — the record still gets saved, just with a different status.
+  const status = currentCount >= capacity ? "waitlisted" : "confirmed";
 
-  if (currentCount >= capacity) {
-    return respond(409, { error: "This event is at full capacity" });
-  }
-
-  // --- Write the registration ---
   const registrationId = crypto.randomUUID();
   const registeredAt = new Date().toISOString();
 
@@ -144,6 +133,7 @@ async function registerForEvent(event) {
     name: name || null,
     email,
     source: source || "direct",
+    status,
     registeredAt,
   };
 
@@ -154,31 +144,52 @@ async function registerForEvent(event) {
     })
   );
 
-  return respond(201, {
-    message: "Registration successful",
+  // Notify via SNS — wrapped in its own try/catch so that if SNS has a
+  // problem, the registration itself still succeeds.
+  if (TOPIC_ARN) {
+    try {
+      const subject =
+        status === "waitlisted" ? "You're on the waitlist" : "Registration confirmed";
+      const message =
+        status === "waitlisted"
+          ? `Hi ${registration.name || "there"}, ${eventResult.Item.eventName} is currently full. You've been added to the waitlist and will be notified if a spot opens up.`
+          : `Hi ${registration.name || "there"}, your registration for ${eventResult.Item.eventName} is confirmed. See you there!`;
+
+      await snsClient.send(
+        new PublishCommand({
+          TopicArn: TOPIC_ARN,
+          Subject: subject,
+          Message: message,
+        })
+      );
+    } catch (snsErr) {
+      console.error("SNS publish failed:", snsErr);
+    }
+  }
+
+  return respond(status === "waitlisted" ? 200 : 201, {
+    message:
+      status === "waitlisted"
+        ? "Event is full — you've been added to the waitlist"
+        : "Registration successful",
     registration: {
       registrationId,
       eventId,
       name: registration.name,
       email,
+      status,
       registeredAt,
     },
   });
 }
 
 async function getRegistrationsByEmail(event) {
-  // API Gateway captures the {email} part of the URL and puts it here.
-  // decodeURIComponent handles the case where the email arrives URL-encoded
-  // (e.g. "%40" instead of "@").
   const email = decodeURIComponent(event.pathParameters?.email || "");
 
   if (!email) {
     return respond(400, { error: "Email is required in the URL path" });
   }
 
-  // This is a Query, not a Scan — much more efficient. It only reads
-  // items where email matches exactly, using the EmailIndex GSI we
-  // created back in Phase 1, instead of reading the whole table.
   const result = await docClient.send(
     new QueryCommand({
       TableName: TABLE_NAME,
@@ -207,10 +218,6 @@ async function cancelRegistration(event) {
 
   const key = { PK: `REGISTRATION#${id}`, SK: `REGISTRATION#${id}` };
 
-  // Check it exists first — deleting a non-existent item wouldn't error
-  // in DynamoDB (Delete is silently OK either way), so without this check
-  // we'd tell the caller "cancelled!" even for a made-up id. Checking
-  // first gives an honest 404 instead.
   const existing = await docClient.send(new GetCommand({ TableName: TABLE_NAME, Key: key }));
 
   if (!existing.Item) {
